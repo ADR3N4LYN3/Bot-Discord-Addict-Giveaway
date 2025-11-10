@@ -423,7 +423,9 @@ client.on('interactionCreate', async (interaction) => {
                 { name: '💰 Prix', value: `${formatPrice(prix)} €`, inline: false },
                 { name: '🏆 Nombre de gagnants', value: `${gagnants}`, inline: false },
                 { name: '⏰ Durée', value: formatDuration(duree), inline: false },
-                { name: '⏳ Tirage au sort dans', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false }
+                { name: '⏳ Tirage au sort dans', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false },
+                { name: '👤 Créateur', value: `${interaction.user}`, inline: false },
+                { name: '👥 Participants', value: `0`, inline: false }
             )
             .setColor(0xFF1493)
             .setTimestamp(endDate);
@@ -698,6 +700,26 @@ client.on('interactionCreate', async (interaction) => {
         saveConfig();
 
         console.log(`🎉 ${interaction.user.tag} a participé au giveaway (${giveaway.prize}€)`);
+
+        // Mettre à jour l'embed avec le nombre de participants
+        const currentEmbed = interaction.message.embeds[0];
+        const updatedEmbed = EmbedBuilder.from(currentEmbed);
+
+        // Trouver et mettre à jour le champ "Participants"
+        const participantCount = config.participants[interaction.message.id].length;
+        const fields = updatedEmbed.data.fields;
+        const participantFieldIndex = fields.findIndex(f => f.name === '👥 Participants');
+
+        if (participantFieldIndex !== -1) {
+            fields[participantFieldIndex].value = `${participantCount}`;
+        }
+
+        // Mettre à jour le message
+        try {
+            await interaction.message.edit({ embeds: [updatedEmbed] });
+        } catch (error) {
+            console.error('⚠️ Erreur lors de la mise à jour de l\'embed:', error.message);
+        }
 
         await interaction.reply({
             content: '✅ Vous participez au giveaway !',
