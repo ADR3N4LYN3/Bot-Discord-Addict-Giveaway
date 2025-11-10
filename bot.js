@@ -288,9 +288,9 @@ async function endGiveaway(giveaway) {
             .setTitle('🎉 GIVEAWAY TERMINÉ !')
             .setDescription(`Félicitations aux gagnant(s) du giveaway ! 🎊`)
             .addFields(
-                { name: '💰 Prix', value: `${formatPrice(giveaway.prize)} €`, inline: true },
-                { name: '🏆 Gagnant(s)', value: winnerMentions, inline: true },
-                { name: '🎁 Participants', value: `${participantIds.length}`, inline: true }
+                { name: '💰 Prix', value: `${formatPrice(giveaway.prize)} €`, inline: false },
+                { name: '🏆 Gagnant(s)', value: winnerMentions, inline: false },
+                { name: '🎁 Participants', value: `${participantIds.length}`, inline: false }
             )
             .setColor(0x00FF00)
             .setTimestamp();
@@ -415,9 +415,9 @@ client.on('interactionCreate', async (interaction) => {
             .setTitle('🎉 GIVEAWAY !')
             .setDescription(`Clique sur le bouton pour participer !`)
             .addFields(
-                { name: '💰 Prix', value: `${formatPrice(prix)} €`, inline: true },
-                { name: '🏆 Nombre de gagnants', value: `${gagnants}`, inline: true },
-                { name: '⏰ Durée', value: formatDuration(duree), inline: true },
+                { name: '💰 Prix', value: `${formatPrice(prix)} €`, inline: false },
+                { name: '🏆 Nombre de gagnants', value: `${gagnants}`, inline: false },
+                { name: '⏰ Durée', value: formatDuration(duree), inline: false },
                 { name: '⏳ Tirage au sort dans', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false }
             )
             .setColor(0xFF1493)
