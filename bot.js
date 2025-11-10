@@ -287,8 +287,11 @@ client.on('interactionCreate', async (interaction) => {
             // Répondre à l'interaction
             await interaction.reply({ content: '✅ Giveaway créé !', flags: MessageFlags.Ephemeral });
 
-            // Envoyer le giveaway dans le channel
-            const giveawayMessage = await channel.send({ embeds: [embed] });
+            // Envoyer le giveaway dans le channel avec ping @everyone
+            const giveawayMessage = await channel.send({
+                content: '@everyone',
+                embeds: [embed]
+            });
 
             // Ajouter la réaction
             await giveawayMessage.react('🎉');
