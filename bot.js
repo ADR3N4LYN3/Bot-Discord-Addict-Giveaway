@@ -220,12 +220,35 @@ function formatTimeRemaining(endTime) {
 async function endGiveaway(giveaway) {
     try {
         const guild = client.guilds.cache.get(giveaway.guild_id);
-        if (!guild) return;
+        if (!guild) {
+            // Serveur introuvable, retirer le giveaway
+            config.giveaways = config.giveaways.filter(g => g.message_id !== giveaway.message_id);
+            delete config.participants[giveaway.message_id];
+            saveConfig();
+            return;
+        }
 
         const channel = guild.channels.cache.get(giveaway.channel_id);
-        if (!channel) return;
+        if (!channel) {
+            // Channel introuvable, retirer le giveaway
+            config.giveaways = config.giveaways.filter(g => g.message_id !== giveaway.message_id);
+            delete config.participants[giveaway.message_id];
+            saveConfig();
+            return;
+        }
 
-        const message = await channel.messages.fetch(giveaway.message_id);
+        let message;
+        try {
+            message = await channel.messages.fetch(giveaway.message_id);
+        } catch (error) {
+            // Message introuvable (supprimé), retirer le giveaway
+            console.log(`⚠️ Message du giveaway ${giveaway.message_id} introuvable, suppression de la config`);
+            config.giveaways = config.giveaways.filter(g => g.message_id !== giveaway.message_id);
+            delete config.participants[giveaway.message_id];
+            saveConfig();
+            return;
+        }
+
         if (!message) return;
 
         // Récupérer les participants depuis le config
