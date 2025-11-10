@@ -22,8 +22,8 @@ Bot Discord qui permet de créer des giveaways avec tirage automatique des gagna
 
 ```bash
 # Clonez le repository
-git clone https://github.com/ADR3N4LYN3/Bot-Discord-Addict-GA.git
-cd Bot-Discord-Addict-GA
+git clone https://github.com/ADR3N4LYN3/Bot-Discord-Addict-Giveaway.git
+cd Bot-Discord-Addict-Giveaway
 
 # Copiez et configurez le .env
 cp .env.example .env
@@ -194,7 +194,7 @@ Dans [bot.js](bot.js):
 ## Structure du projet
 
 ```
-Bot-Discord-Addict-GA/
+Bot-Discord-Addict-Giveaway/
 │
 ├── bot.js                 # Code principal du bot
 ├── package.json           # Dépendances Node.js
@@ -228,8 +228,8 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # 2. Cloner le repository
-git clone https://github.com/ADR3N4LYN3/Bot-Discord-Addict-GA.git
-cd Bot-Discord-Addict-GA
+git clone https://github.com/ADR3N4LYN3/Bot-Discord-Addict-Giveaway.git
+cd Bot-Discord-Addict-Giveaway
 
 # 3. Créer et configurer le .env
 cp .env.example .env
@@ -251,7 +251,7 @@ screen -r giveaway-bot
 ### Mettre à jour le bot sur le VPS
 
 ```bash
-cd Bot-Discord-Addict-GA
+cd Bot-Discord-Addict-Giveaway
 git pull
 npm install  # Au cas où il y aurait de nouvelles dépendances
 # Redémarrez le bot
@@ -271,7 +271,7 @@ After=network.target
 [Service]
 Type=simple
 User=votre_user
-WorkingDirectory=/home/votre_user/bot/Bot-Discord-Addict-GA
+WorkingDirectory=/home/votre_user/bot/Bot-Discord-Addict-Giveaway
 ExecStart=/usr/bin/node bot.js
 Restart=always
 RestartSec=10
