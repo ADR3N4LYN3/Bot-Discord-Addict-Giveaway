@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, SlashCommandBuilder, REST, Routes, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, SlashCommandBuilder, REST, Routes, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
 require('dotenv').config();
 
@@ -12,6 +12,7 @@ const GIVEAWAY_ROLE_IDS = process.env.GIVEAWAY_ROLE_ID ? process.env.GIVEAWAY_RO
 // Charger la configuration (giveaways actifs + stats)
 let config = {
     giveaways: [],
+    participants: {}, // {message_id: [user_ids]}
     stats: {
         total_created: 0,
         total_completed: 0,
@@ -30,6 +31,11 @@ try {
             total_cancelled: 0,
             total_participants: 0
         };
+        saveConfig();
+    }
+    // Ajouter participants si n'existe pas
+    if (!config.participants) {
+        config.participants = {};
         saveConfig();
     }
 } catch (error) {
@@ -222,54 +228,51 @@ async function endGiveaway(giveaway) {
         const message = await channel.messages.fetch(giveaway.message_id);
         if (!message) return;
 
-        // Récupérer toutes les réactions 🎉
-        const reaction = message.reactions.cache.get('🎉');
-        if (!reaction) {
-            await channel.send('❌ Aucune participation au giveaway !');
-            return;
-        }
+        // Récupérer les participants depuis le config
+        const participantIds = config.participants[giveaway.message_id] || [];
 
-        // Récupérer tous les utilisateurs qui ont réagi (sauf le bot)
-        const users = await reaction.users.fetch();
-        const participants = users.filter(user => !user.bot);
-
-        if (participants.size === 0) {
-            await channel.send('❌ Aucune participation au giveaway !');
+        if (participantIds.length === 0) {
+            await channel.send({ content: '❌ Aucune participation au giveaway !' });
+            // Retirer le giveaway de la config
+            config.giveaways = config.giveaways.filter(g => g.message_id !== giveaway.message_id);
+            delete config.participants[giveaway.message_id];
+            saveConfig();
             return;
         }
 
         // Tirer au sort les gagnants
-        const winnersCount = Math.min(giveaway.winners, participants.size);
-        const participantsArray = Array.from(participants.values());
-        const winners = [];
+        const winnersCount = Math.min(giveaway.winners, participantIds.length);
+        const participantsCopy = [...participantIds];
+        const winnerIds = [];
 
         for (let i = 0; i < winnersCount; i++) {
-            const randomIndex = Math.floor(Math.random() * participantsArray.length);
-            winners.push(participantsArray[randomIndex]);
-            participantsArray.splice(randomIndex, 1);
+            const randomIndex = Math.floor(Math.random() * participantsCopy.length);
+            winnerIds.push(participantsCopy[randomIndex]);
+            participantsCopy.splice(randomIndex, 1);
         }
 
         // Annoncer les gagnants
-        const winnerMentions = winners.map(w => `<@${w.id}>`).join(', ');
+        const winnerMentions = winnerIds.map(id => `<@${id}>`).join(', ');
 
         const resultEmbed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY TERMINÉ !')
-            .setDescription(`**Prix:** ${giveaway.prize}€\n\n**Gagnant(s):** ${winnerMentions}`)
+            .setDescription(`**Prix:** ${giveaway.prize}€\n\n**Gagnant(s):** ${winnerMentions}\n\nFélicitations ! 🎊`)
             .setColor(0x00FF00)
-            .setFooter({ text: `${participants.size} participant(s) au total` })
+            .setFooter({ text: `${participantIds.length} participant(s) au total` })
             .setTimestamp();
 
-        await channel.send({ embeds: [resultEmbed] });
+        await channel.send({ content: winnerMentions, embeds: [resultEmbed] });
 
         // Logger
-        await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${giveaway.prize}€\nGagnants: ${winnerMentions}\nParticipants: ${participants.size}`);
+        await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${giveaway.prize}€\nGagnants: ${winnerMentions}\nParticipants: ${participantIds.length}`);
 
         // Mettre à jour les statistiques
         config.stats.total_completed++;
-        config.stats.total_participants += participants.size;
+        config.stats.total_participants += participantIds.length;
 
         // Retirer le giveaway de la config
         config.giveaways = config.giveaways.filter(g => g.message_id !== giveaway.message_id);
+        delete config.participants[giveaway.message_id];
         saveConfig();
 
     } catch (error) {
@@ -376,10 +379,19 @@ client.on('interactionCreate', async (interaction) => {
         // Créer l'embed du giveaway
         const embed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY !')
-            .setDescription(`Réagis avec 🎉 pour participer !\n\n**Prix:** ${prix}€\n**Gagnants:** ${gagnants}\n**Durée:** ${formatDuration(duree)}\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
+            .setDescription(`Clique sur le bouton pour participer !\n\n**Prix:** ${prix}€\n**Gagnants:** ${gagnants}\n**Durée:** ${formatDuration(duree)}\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
             .setColor(0xFF1493)
             .setFooter({ text: `${gagnants} gagnant(s) | Se termine` })
             .setTimestamp(endDate);
+
+        // Créer le bouton de participation
+        const button = new ButtonBuilder()
+            .setCustomId('join_giveaway')
+            .setLabel('🎉 Participer')
+            .setStyle(ButtonStyle.Primary);
+
+        const row = new ActionRowBuilder()
+            .addComponents(button);
 
         try {
             // Répondre à l'interaction
@@ -388,11 +400,9 @@ client.on('interactionCreate', async (interaction) => {
             // Envoyer le giveaway dans le channel avec ping @everyone
             const giveawayMessage = await channel.send({
                 content: '@everyone',
-                embeds: [embed]
+                embeds: [embed],
+                components: [row]
             });
-
-            // Ajouter la réaction
-            await giveawayMessage.react('🎉');
 
             // Sauvegarder le giveaway
             config.giveaways.push({
@@ -404,6 +414,9 @@ client.on('interactionCreate', async (interaction) => {
                 end_time: endTime,
                 created_by: interaction.user.id
             });
+
+            // Initialiser le tableau des participants
+            config.participants[giveawayMessage.id] = [];
 
             // Mettre à jour les statistiques
             config.stats.total_created++;
@@ -613,27 +626,47 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// Événement : Réaction ajoutée
-client.on('messageReactionAdd', async (reaction, user) => {
-    if (user.bot) return;
+// Événement : Interaction avec le bouton
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
 
-    if (reaction.partial) {
-        try {
-            await reaction.fetch();
-        } catch (error) {
-            console.error('❌ Erreur lors de la récupération de la réaction:', error);
+    if (interaction.customId === 'join_giveaway') {
+        // Vérifier si c'est un giveaway actif
+        const giveaway = config.giveaways.find(g => g.message_id === interaction.message.id);
+
+        if (!giveaway) {
+            await interaction.reply({
+                content: '❌ Ce giveaway n\'est plus actif.',
+                flags: MessageFlags.Ephemeral
+            });
             return;
         }
+
+        // Initialiser le tableau si nécessaire
+        if (!config.participants[interaction.message.id]) {
+            config.participants[interaction.message.id] = [];
+        }
+
+        // Vérifier si l'utilisateur participe déjà
+        if (config.participants[interaction.message.id].includes(interaction.user.id)) {
+            await interaction.reply({
+                content: '⚠️ Vous participez déjà à ce giveaway !',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        // Ajouter l'utilisateur
+        config.participants[interaction.message.id].push(interaction.user.id);
+        saveConfig();
+
+        console.log(`🎉 ${interaction.user.tag} a participé au giveaway (${giveaway.prize}€)`);
+
+        await interaction.reply({
+            content: '✅ Vous participez au giveaway !',
+            flags: MessageFlags.Ephemeral
+        });
     }
-
-    // Vérifier si c'est un giveaway actif
-    const giveaway = config.giveaways.find(g => g.message_id === reaction.message.id);
-    if (!giveaway) return;
-
-    // Vérifier si c'est le bon emoji
-    if (reaction.emoji.name !== '🎉') return;
-
-    console.log(`🎉 ${user.tag} a participé au giveaway (${giveaway.prize}€)`);
 });
 
 // Gestion des erreurs
