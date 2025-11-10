@@ -386,6 +386,22 @@ client.on('interactionCreate', async (interaction) => {
 
     // Commande /glist - Liste les giveaways actifs
     if (interaction.commandName === 'glist') {
+        // Vérifier les permissions
+        const member = interaction.member;
+        const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
+        const hasRole = GIVEAWAY_ROLE_IDS[0] !== '0' && GIVEAWAY_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
+
+        if (!isAdmin && !hasRole) {
+            const rolesList = GIVEAWAY_ROLE_IDS.filter(id => id !== '0').map(id => `<@&${id}>`).join(', ');
+            await interaction.reply({
+                content: GIVEAWAY_ROLE_IDS[0] !== '0'
+                    ? `❌ Vous devez avoir un des rôles suivants ou être administrateur: ${rolesList}`
+                    : '❌ Vous devez être administrateur.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
         if (config.giveaways.length === 0) {
             await interaction.reply({
                 content: '📭 Aucun giveaway actif pour le moment.',
@@ -503,6 +519,22 @@ client.on('interactionCreate', async (interaction) => {
 
     // Commande /gstats - Affiche les statistiques
     if (interaction.commandName === 'gstats') {
+        // Vérifier les permissions
+        const member = interaction.member;
+        const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
+        const hasRole = GIVEAWAY_ROLE_IDS[0] !== '0' && GIVEAWAY_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
+
+        if (!isAdmin && !hasRole) {
+            const rolesList = GIVEAWAY_ROLE_IDS.filter(id => id !== '0').map(id => `<@&${id}>`).join(', ');
+            await interaction.reply({
+                content: GIVEAWAY_ROLE_IDS[0] !== '0'
+                    ? `❌ Vous devez avoir un des rôles suivants ou être administrateur: ${rolesList}`
+                    : '❌ Vous devez être administrateur.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
         const embed = new EmbedBuilder()
             .setTitle('📊 STATISTIQUES DES GIVEAWAYS')
             .setColor(0x00FF00)
