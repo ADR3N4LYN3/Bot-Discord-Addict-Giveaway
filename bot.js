@@ -4,6 +4,7 @@ require('dotenv').config();
 
 // Charger les variables d'environnement
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || '0';
 const DEFAULT_GIVEAWAY_CHANNEL_ID = process.env.DEFAULT_GIVEAWAY_CHANNEL_ID || '0';
@@ -181,7 +182,7 @@ async function registerCommands() {
 
         // Supprimer les commandes globales pour éviter les doublons
         await rest.put(
-            Routes.applicationCommands(client.user.id),
+            Routes.applicationCommands(CLIENT_ID),
             { body: [] }
         );
         console.log('🗑️ Commandes globales supprimées');
@@ -189,14 +190,14 @@ async function registerCommands() {
         if (GUILD_ID) {
             // Mode Guild : les commandes apparaissent instantanément
             await rest.put(
-                Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+                Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
                 { body: commands }
             );
             console.log(`✅ Slash commands enregistrées avec succès pour le serveur ${GUILD_ID} !`);
         } else {
             // Mode Global : peut prendre jusqu'à 1 heure
             await rest.put(
-                Routes.applicationCommands(client.user.id),
+                Routes.applicationCommands(CLIENT_ID),
                 { body: commands }
             );
             console.log('✅ Slash commands enregistrées globalement (peut prendre jusqu\'à 1h) !');
@@ -335,11 +336,6 @@ function checkGiveaways() {
 client.once('clientReady', async () => {
     console.log(`${client.user.tag} est connecté et prêt !`);
     console.log(`ID du bot: ${client.user.id}`);
-    console.log('------');
-
-    // Enregistrer les slash commands
-    await registerCommands();
-
     console.log('------');
     console.log(`Actif sur ${client.guilds.cache.size} serveur(s)`);
     console.log('------');
@@ -746,7 +742,19 @@ if (!DISCORD_TOKEN) {
     process.exit(1);
 }
 
-client.login(DISCORD_TOKEN).catch(error => {
-    console.error('❌ Erreur de connexion:', error.message);
+if (!CLIENT_ID) {
+    console.error('❌ ERREUR: CLIENT_ID non trouvé dans le fichier .env');
+    console.error('Veuillez ajouter l\'ID de votre bot dans le fichier .env');
+    process.exit(1);
+}
+
+// Enregistrer les commandes puis se connecter
+registerCommands().then(() => {
+    client.login(DISCORD_TOKEN).catch(error => {
+        console.error('❌ Erreur de connexion:', error.message);
+        process.exit(1);
+    });
+}).catch(error => {
+    console.error('❌ Erreur lors de l\'enregistrement des commandes:', error.message);
     process.exit(1);
 });
