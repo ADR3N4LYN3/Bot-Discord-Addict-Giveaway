@@ -447,7 +447,8 @@ client.on('interactionCreate', async (interaction) => {
             const giveawayMessage = await channel.send({
                 content: customMessage,
                 embeds: [embed],
-                components: [row]
+                components: [row],
+                allowedMentions: { parse: ['everyone', 'roles', 'users'] }
             });
 
             // Sauvegarder le giveaway
