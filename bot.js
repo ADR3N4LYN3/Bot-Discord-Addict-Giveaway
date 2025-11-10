@@ -467,24 +467,14 @@ client.on('interactionCreate', async (interaction) => {
             const channel = interaction.guild.channels.cache.get(giveaway.channel_id);
             const timeLeft = formatTimeRemaining(giveaway.end_time);
 
-            // Récupérer le nombre de participants
-            try {
-                const message = await channel.messages.fetch(giveaway.message_id);
-                const reaction = message.reactions.cache.get('🎉');
-                const participantCount = reaction ? reaction.count - 1 : 0; // -1 pour exclure le bot
+            // Récupérer le nombre de participants depuis la config
+            const participantCount = config.participants[giveaway.message_id]?.length || 0;
 
-                embed.addFields({
-                    name: `🎁 ${giveaway.prize}€`,
-                    value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Participants:** ${participantCount}\n**Message ID:** \`${giveaway.message_id}\``,
-                    inline: false
-                });
-            } catch (error) {
-                embed.addFields({
-                    name: `🎁 ${giveaway.prize}€`,
-                    value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Message ID:** \`${giveaway.message_id}\``,
-                    inline: false
-                });
-            }
+            embed.addFields({
+                name: `🎁 ${giveaway.prize}€`,
+                value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Participants:** ${participantCount}\n**Message ID:** \`${giveaway.message_id}\``,
+                inline: false
+            });
         }
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
