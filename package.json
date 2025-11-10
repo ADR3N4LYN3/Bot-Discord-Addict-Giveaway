@@ -1,0 +1,25 @@
+{
+  "name": "bot-discord-giveaway",
+  "version": "1.0.0",
+  "description": "Bot Discord pour gérer les giveaways avec tirage automatique",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node bot.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "giveaway",
+    "concours"
+  ],
+  "author": "ADR3N4LYN3",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.1"
+  },
+  "engines": {
+    "node": ">=16.9.0"
+  }
+}
