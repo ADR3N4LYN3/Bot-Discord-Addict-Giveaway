@@ -47,11 +47,11 @@ const commands = [
             option.setName('prix')
                 .setDescription('Montant du prix en euros (ex: 50)')
                 .setRequired(true))
-        .addIntegerOption(option =>
+        .addNumberOption(option =>
             option.setName('duree')
-                .setDescription('Durée en heures')
+                .setDescription('Durée en heures (décimales acceptées: 0.5 = 30min)')
                 .setRequired(true)
-                .setMinValue(1)
+                .setMinValue(0.1)
                 .setMaxValue(720))
         .addIntegerOption(option =>
             option.setName('gagnants')
@@ -133,6 +133,20 @@ function saveConfig() {
         fs.writeFileSync('./config.json', JSON.stringify(config, null, 4), 'utf8');
     } catch (error) {
         console.error('❌ Erreur lors de la sauvegarde de config.json:', error.message);
+    }
+}
+
+/**
+ * Formatte la durée en heures en format lisible
+ */
+function formatDuration(hours) {
+    if (hours >= 1) {
+        // Afficher en heures
+        return hours === Math.floor(hours) ? `${hours}h` : `${hours}h`;
+    } else {
+        // Convertir en minutes si moins d'1h
+        const minutes = Math.round(hours * 60);
+        return `${minutes}min`;
     }
 }
 
@@ -328,7 +342,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         const prix = interaction.options.getString('prix');
-        const duree = interaction.options.getInteger('duree');
+        const duree = interaction.options.getNumber('duree');
         const gagnants = interaction.options.getInteger('gagnants');
         let channel = interaction.options.getChannel('channel');
 
@@ -359,7 +373,7 @@ client.on('interactionCreate', async (interaction) => {
         // Créer l'embed du giveaway
         const embed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY !')
-            .setDescription(`Réagis avec 🎉 pour participer !\n\n**Prix:** ${prix}€\n**Gagnants:** ${gagnants}\n**Durée:** ${duree}h\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
+            .setDescription(`Réagis avec 🎉 pour participer !\n\n**Prix:** ${prix}€\n**Gagnants:** ${gagnants}\n**Durée:** ${formatDuration(duree)}\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
             .setColor(0xFF1493)
             .setFooter({ text: `${gagnants} gagnant(s) | Se termine` })
             .setTimestamp(endDate);
@@ -392,8 +406,8 @@ client.on('interactionCreate', async (interaction) => {
             config.stats.total_created++;
             saveConfig();
 
-            console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${prix}€ - Durée: ${duree}h`);
-            await sendLog(interaction.guild, `🎁 **Nouveau giveaway créé**\nPar: ${interaction.user}\nPrix: ${prix}€\nDurée: ${duree}h\nGagnants: ${gagnants}`);
+            console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${prix}€ - Durée: ${formatDuration(duree)}`);
+            await sendLog(interaction.guild, `🎁 **Nouveau giveaway créé**\nPar: ${interaction.user}\nPrix: ${prix}€\nDurée: ${formatDuration(duree)}\nGagnants: ${gagnants}`);
 
         } catch (error) {
             console.error('❌ Erreur lors de la création du giveaway:', error.message);
