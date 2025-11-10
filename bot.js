@@ -143,6 +143,13 @@ function saveConfig() {
 }
 
 /**
+ * Formatte le prix avec des espaces tous les 3 chiffres
+ */
+function formatPrice(price) {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
  * Formatte la durée en minutes en format lisible
  */
 function formatDuration(minutes) {
@@ -150,12 +157,12 @@ function formatDuration(minutes) {
         const hours = Math.floor(minutes / 60);
         const remainingMinutes = minutes % 60;
         if (remainingMinutes === 0) {
-            return `${hours}h`;
+            return `${hours} h`;
         } else {
-            return `${hours}h${remainingMinutes}min`;
+            return `${hours} h ${remainingMinutes} min`;
         }
     } else {
-        return `${minutes}min`;
+        return `${minutes} min`;
     }
 }
 
@@ -279,7 +286,7 @@ async function endGiveaway(giveaway) {
 
         const resultEmbed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY TERMINÉ !')
-            .setDescription(`**Prix:** ${giveaway.prize}€\n\n**Gagnant(s):** ${winnerMentions}\n\nFélicitations ! 🎊`)
+            .setDescription(`**Prix:** ${formatPrice(giveaway.prize)} €\n\n**Gagnant(s):** ${winnerMentions}\n\nFélicitations ! 🎊`)
             .setColor(0x00FF00)
             .setFooter({ text: `${participantIds.length} participant(s) au total` })
             .setTimestamp();
@@ -287,7 +294,7 @@ async function endGiveaway(giveaway) {
         await channel.send({ content: winnerMentions, embeds: [resultEmbed] });
 
         // Logger
-        await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${giveaway.prize}€\nGagnants: ${winnerMentions}\nParticipants: ${participantIds.length}`);
+        await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${formatPrice(giveaway.prize)} €\nGagnants: ${winnerMentions}\nParticipants: ${participantIds.length}`);
 
         // Mettre à jour les statistiques
         config.stats.total_completed++;
@@ -402,7 +409,7 @@ client.on('interactionCreate', async (interaction) => {
         // Créer l'embed du giveaway
         const embed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY !')
-            .setDescription(`Clique sur le bouton pour participer !\n\n**Prix:** ${prix}€\n**Gagnants:** ${gagnants}\n**Durée:** ${formatDuration(duree)}\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
+            .setDescription(`Clique sur le bouton pour participer !\n\n**Prix:** ${formatPrice(prix)} €\n**Gagnants:** ${gagnants}\n**Durée:** ${formatDuration(duree)}\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
             .setColor(0xFF1493)
             .setFooter({ text: `${gagnants} gagnant(s) | Se termine` })
             .setTimestamp(endDate);
@@ -445,8 +452,8 @@ client.on('interactionCreate', async (interaction) => {
             config.stats.total_created++;
             saveConfig();
 
-            console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${prix}€ - Durée: ${formatDuration(duree)}`);
-            await sendLog(interaction.guild, `🎁 **Nouveau giveaway créé**\nPar: ${interaction.user}\nPrix: ${prix}€\nDurée: ${formatDuration(duree)}\nGagnants: ${gagnants}`);
+            console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${formatPrice(prix)} € - Durée: ${formatDuration(duree)}`);
+            await sendLog(interaction.guild, `🎁 **Nouveau giveaway créé**\nPar: ${interaction.user}\nPrix: ${formatPrice(prix)} €\nDurée: ${formatDuration(duree)}\nGagnants: ${gagnants}`);
 
         } catch (error) {
             console.error('❌ Erreur lors de la création du giveaway:', error.message);
@@ -494,7 +501,7 @@ client.on('interactionCreate', async (interaction) => {
             const participantCount = config.participants[giveaway.message_id]?.length || 0;
 
             embed.addFields({
-                name: `🎁 ${giveaway.prize}€`,
+                name: `🎁 ${formatPrice(giveaway.prize)} €`,
                 value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Participants:** ${participantCount}\n**Message ID:** \`${giveaway.message_id}\``,
                 inline: false
             });
@@ -548,14 +555,14 @@ client.on('interactionCreate', async (interaction) => {
 
             const cancelEmbed = new EmbedBuilder()
                 .setTitle('❌ GIVEAWAY ANNULÉ')
-                .setDescription(`**Prix:** ${giveaway.prize}€\n\nCe giveaway a été annulé par un administrateur.`)
+                .setDescription(`**Prix:** ${formatPrice(giveaway.prize)} €\n\nCe giveaway a été annulé par un administrateur.`)
                 .setColor(0xFF0000)
                 .setTimestamp();
 
             await channel.send({ embeds: [cancelEmbed] });
 
             // Logger
-            await sendLog(guild, `❌ **Giveaway annulé**\nPrix: ${giveaway.prize}€\nPar: ${interaction.user}`);
+            await sendLog(guild, `❌ **Giveaway annulé**\nPrix: ${formatPrice(giveaway.prize)} €\nPar: ${interaction.user}`);
 
             // Mettre à jour les statistiques
             config.stats.total_cancelled++;
