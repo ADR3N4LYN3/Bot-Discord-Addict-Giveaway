@@ -286,9 +286,13 @@ async function endGiveaway(giveaway) {
 
         const resultEmbed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY TERMINÉ !')
-            .setDescription(`**Prix:** ${formatPrice(giveaway.prize)} €\n\n**Gagnant(s):** ${winnerMentions}\n\nFélicitations ! 🎊`)
+            .setDescription(`Félicitations aux gagnant(s) du giveaway ! 🎊`)
+            .addFields(
+                { name: '💰 Prix', value: `${formatPrice(giveaway.prize)} €`, inline: true },
+                { name: '🏆 Gagnant(s)', value: winnerMentions, inline: true },
+                { name: '🎁 Participants', value: `${participantIds.length}`, inline: true }
+            )
             .setColor(0x00FF00)
-            .setFooter({ text: `${participantIds.length} participant(s) au total` })
             .setTimestamp();
 
         await channel.send({ content: winnerMentions, embeds: [resultEmbed] });
@@ -409,9 +413,14 @@ client.on('interactionCreate', async (interaction) => {
         // Créer l'embed du giveaway
         const embed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY !')
-            .setDescription(`Clique sur le bouton pour participer !\n\n**Prix:** ${formatPrice(prix)} €\n**Gagnants:** ${gagnants}\n**Durée:** ${formatDuration(duree)}\n**Fin:** <t:${Math.floor(endTime / 1000)}:R>`)
+            .setDescription(`Clique sur le bouton pour participer !`)
+            .addFields(
+                { name: '💰 Prix', value: `${formatPrice(prix)} €`, inline: true },
+                { name: '🏆 Nombre de gagnants', value: `${gagnants}`, inline: true },
+                { name: '⏰ Durée', value: formatDuration(duree), inline: true },
+                { name: '⏳ Tirage au sort dans', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false }
+            )
             .setColor(0xFF1493)
-            .setFooter({ text: `${gagnants} gagnant(s) | Se termine` })
             .setTimestamp(endDate);
 
         // Créer le bouton de participation
@@ -555,7 +564,10 @@ client.on('interactionCreate', async (interaction) => {
 
             const cancelEmbed = new EmbedBuilder()
                 .setTitle('❌ GIVEAWAY ANNULÉ')
-                .setDescription(`**Prix:** ${formatPrice(giveaway.prize)} €\n\nCe giveaway a été annulé par un administrateur.`)
+                .setDescription(`Ce giveaway a été annulé par un administrateur.`)
+                .addFields(
+                    { name: '💰 Prix', value: `${formatPrice(giveaway.prize)} €`, inline: true }
+                )
                 .setColor(0xFF0000)
                 .setTimestamp();
 
