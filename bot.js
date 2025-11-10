@@ -4,6 +4,7 @@ require('dotenv').config();
 
 // Charger les variables d'environnement
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const GUILD_ID = process.env.GUILD_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || '0';
 const DEFAULT_GIVEAWAY_CHANNEL_ID = process.env.DEFAULT_GIVEAWAY_CHANNEL_ID || '0';
 const GIVEAWAY_ROLE_IDS = process.env.GIVEAWAY_ROLE_ID ? process.env.GIVEAWAY_ROLE_ID.split(',').map(id => id.trim()) : ['0'];
@@ -144,12 +145,21 @@ async function registerCommands() {
     try {
         console.log('🔄 Enregistrement des slash commands...');
 
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commands }
-        );
-
-        console.log('✅ Slash commands enregistrées avec succès !');
+        if (GUILD_ID) {
+            // Mode Guild : les commandes apparaissent instantanément
+            await rest.put(
+                Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+                { body: commands }
+            );
+            console.log(`✅ Slash commands enregistrées avec succès pour le serveur ${GUILD_ID} !`);
+        } else {
+            // Mode Global : peut prendre jusqu'à 1 heure
+            await rest.put(
+                Routes.applicationCommands(client.user.id),
+                { body: commands }
+            );
+            console.log('✅ Slash commands enregistrées globalement (peut prendre jusqu\'à 1h) !');
+        }
     } catch (error) {
         console.error('❌ Erreur lors de l\'enregistrement des slash commands:', error);
     }
