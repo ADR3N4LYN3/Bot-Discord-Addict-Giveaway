@@ -68,6 +68,10 @@ const commands = [
         .addChannelOption(option =>
             option.setName('channel')
                 .setDescription('Channel où poster le giveaway (optionnel si channel par défaut configuré)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('message')
+                .setDescription('Message personnalisé (par défaut: @everyone)')
                 .setRequired(false)),
     new SlashCommandBuilder()
         .setName('glist')
@@ -385,6 +389,7 @@ client.on('interactionCreate', async (interaction) => {
         const duree = interaction.options.getInteger('duree');
         const gagnants = interaction.options.getInteger('gagnants');
         let channel = interaction.options.getChannel('channel');
+        const customMessage = interaction.options.getString('message') || '@everyone';
 
         // Si aucun channel n'est fourni, utiliser le channel par défaut
         if (!channel) {
@@ -436,9 +441,9 @@ client.on('interactionCreate', async (interaction) => {
             // Répondre à l'interaction
             await interaction.reply({ content: '✅ Giveaway créé !', flags: MessageFlags.Ephemeral });
 
-            // Envoyer le giveaway dans le channel avec ping @everyone
+            // Envoyer le giveaway dans le channel
             const giveawayMessage = await channel.send({
-                content: '@everyone',
+                content: customMessage,
                 embeds: [embed],
                 components: [row]
             });
