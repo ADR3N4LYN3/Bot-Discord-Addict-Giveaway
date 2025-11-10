@@ -6,7 +6,7 @@ require('dotenv').config();
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || '0';
 const DEFAULT_GIVEAWAY_CHANNEL_ID = process.env.DEFAULT_GIVEAWAY_CHANNEL_ID || '0';
-const GIVEAWAY_ROLE_ID = process.env.GIVEAWAY_ROLE_ID || '0';
+const GIVEAWAY_ROLE_IDS = process.env.GIVEAWAY_ROLE_ID ? process.env.GIVEAWAY_ROLE_ID.split(',').map(id => id.trim()) : ['0'];
 
 // Charger la configuration (giveaways actifs)
 let config = { giveaways: [] };
@@ -224,7 +224,7 @@ client.once('clientReady', async () => {
     console.log('------');
     console.log(`Logs Discord: ${LOG_CHANNEL_ID !== '0' ? '✅ Activés' : '❌ Désactivés'}`);
     console.log(`Channel giveaway par défaut: ${DEFAULT_GIVEAWAY_CHANNEL_ID !== '0' ? '✅ Configuré' : '❌ Non configuré'}`);
-    console.log(`Rôle giveaway: ${GIVEAWAY_ROLE_ID !== '0' ? '✅ Configuré' : '❌ Seulement admins'}`);
+    console.log(`Rôle(s) giveaway: ${GIVEAWAY_ROLE_IDS[0] !== '0' ? `✅ ${GIVEAWAY_ROLE_IDS.length} configuré(s)` : '❌ Seulement admins'}`);
     console.log('------');
 
     // Définir l'activité/statut du bot
@@ -251,12 +251,13 @@ client.on('interactionCreate', async (interaction) => {
         // Vérifier les permissions
         const member = interaction.member;
         const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
-        const hasRole = GIVEAWAY_ROLE_ID !== '0' && member.roles.cache.has(GIVEAWAY_ROLE_ID);
+        const hasRole = GIVEAWAY_ROLE_IDS[0] !== '0' && GIVEAWAY_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
 
         if (!isAdmin && !hasRole) {
+            const rolesList = GIVEAWAY_ROLE_IDS.filter(id => id !== '0').map(id => `<@&${id}>`).join(', ');
             await interaction.reply({
-                content: GIVEAWAY_ROLE_ID !== '0'
-                    ? `❌ Vous devez avoir le rôle <@&${GIVEAWAY_ROLE_ID}> ou être administrateur pour créer des giveaways.`
+                content: GIVEAWAY_ROLE_IDS[0] !== '0'
+                    ? `❌ Vous devez avoir un des rôles suivants ou être administrateur pour créer des giveaways: ${rolesList}`
                     : '❌ Vous devez être administrateur pour créer des giveaways.',
                 flags: MessageFlags.Ephemeral
             });
