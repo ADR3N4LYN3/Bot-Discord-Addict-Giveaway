@@ -319,8 +319,8 @@ client.once('clientReady', async () => {
         status: 'online'
     });
 
-    // Vérifier les giveaways toutes les minutes
-    setInterval(checkGiveaways, 60000);
+    // Vérifier les giveaways toutes les 10 secondes
+    setInterval(checkGiveaways, 10000);
 
     // Vérifier immédiatement au démarrage
     checkGiveaways();
