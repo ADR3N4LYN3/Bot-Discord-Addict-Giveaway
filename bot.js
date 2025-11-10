@@ -6,6 +6,7 @@ require('dotenv').config();
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || '0';
 const DEFAULT_GIVEAWAY_CHANNEL_ID = process.env.DEFAULT_GIVEAWAY_CHANNEL_ID || '0';
+const GIVEAWAY_ROLE_ID = process.env.GIVEAWAY_ROLE_ID || '0';
 
 // Charger la configuration (giveaways actifs)
 let config = { giveaways: [] };
@@ -22,7 +23,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('giveaway')
         .setDescription('Crée un giveaway')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .setDefaultMemberPermissions(null) // Permissions vérifiées dans le code
         .addStringOption(option =>
             option.setName('prix')
                 .setDescription('Montant du prix en euros (ex: 50)')
@@ -223,6 +224,7 @@ client.once('clientReady', async () => {
     console.log('------');
     console.log(`Logs Discord: ${LOG_CHANNEL_ID !== '0' ? '✅ Activés' : '❌ Désactivés'}`);
     console.log(`Channel giveaway par défaut: ${DEFAULT_GIVEAWAY_CHANNEL_ID !== '0' ? '✅ Configuré' : '❌ Non configuré'}`);
+    console.log(`Rôle giveaway: ${GIVEAWAY_ROLE_ID !== '0' ? '✅ Configuré' : '❌ Seulement admins'}`);
     console.log('------');
 
     // Définir l'activité/statut du bot
@@ -246,6 +248,21 @@ client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'giveaway') {
+        // Vérifier les permissions
+        const member = interaction.member;
+        const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
+        const hasRole = GIVEAWAY_ROLE_ID !== '0' && member.roles.cache.has(GIVEAWAY_ROLE_ID);
+
+        if (!isAdmin && !hasRole) {
+            await interaction.reply({
+                content: GIVEAWAY_ROLE_ID !== '0'
+                    ? `❌ Vous devez avoir le rôle <@&${GIVEAWAY_ROLE_ID}> ou être administrateur pour créer des giveaways.`
+                    : '❌ Vous devez être administrateur pour créer des giveaways.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
         const prix = interaction.options.getString('prix');
         const duree = interaction.options.getInteger('duree');
         const gagnants = interaction.options.getInteger('gagnants');
