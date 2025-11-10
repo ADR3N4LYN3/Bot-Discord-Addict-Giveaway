@@ -8,17 +8,35 @@ const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || '0';
 const DEFAULT_GIVEAWAY_CHANNEL_ID = process.env.DEFAULT_GIVEAWAY_CHANNEL_ID || '0';
 const GIVEAWAY_ROLE_IDS = process.env.GIVEAWAY_ROLE_ID ? process.env.GIVEAWAY_ROLE_ID.split(',').map(id => id.trim()) : ['0'];
 
-// Charger la configuration (giveaways actifs)
-let config = { giveaways: [] };
+// Charger la configuration (giveaways actifs + stats)
+let config = {
+    giveaways: [],
+    stats: {
+        total_created: 0,
+        total_completed: 0,
+        total_cancelled: 0,
+        total_participants: 0
+    }
+};
 try {
     const configData = fs.readFileSync('./config.json', 'utf8');
     config = JSON.parse(configData);
+    // Ajouter les stats si elles n'existent pas
+    if (!config.stats) {
+        config.stats = {
+            total_created: 0,
+            total_completed: 0,
+            total_cancelled: 0,
+            total_participants: 0
+        };
+        saveConfig();
+    }
 } catch (error) {
     console.log('ℹ️ Aucune config trouvée, création d\'une nouvelle');
     saveConfig();
 }
 
-// Définition de la slash command
+// Définition des slash commands
 const commands = [
     new SlashCommandBuilder()
         .setName('giveaway')
@@ -43,7 +61,31 @@ const commands = [
         .addChannelOption(option =>
             option.setName('channel')
                 .setDescription('Channel où poster le giveaway (optionnel si channel par défaut configuré)')
-                .setRequired(false))
+                .setRequired(false)),
+    new SlashCommandBuilder()
+        .setName('glist')
+        .setDescription('Liste les giveaways actifs')
+        .setDefaultMemberPermissions(null),
+    new SlashCommandBuilder()
+        .setName('gend')
+        .setDescription('Termine un giveaway manuellement')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addStringOption(option =>
+            option.setName('message_id')
+                .setDescription('ID du message du giveaway')
+                .setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('gcancel')
+        .setDescription('Annule un giveaway')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addStringOption(option =>
+            option.setName('message_id')
+                .setDescription('ID du message du giveaway')
+                .setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('gstats')
+        .setDescription('Affiche les statistiques des giveaways')
+        .setDefaultMemberPermissions(null)
 ].map(command => command.toJSON());
 
 // Créer le client Discord
@@ -188,6 +230,10 @@ async function endGiveaway(giveaway) {
         // Logger
         await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${giveaway.prize}€\nGagnants: ${winnerMentions}\nParticipants: ${participants.size}`);
 
+        // Mettre à jour les statistiques
+        config.stats.total_completed++;
+        config.stats.total_participants += participants.size;
+
         // Retirer le giveaway de la config
         config.giveaways = config.giveaways.filter(g => g.message_id !== giveaway.message_id);
         saveConfig();
@@ -324,6 +370,9 @@ client.on('interactionCreate', async (interaction) => {
                 end_time: endTime,
                 created_by: interaction.user.id
             });
+
+            // Mettre à jour les statistiques
+            config.stats.total_created++;
             saveConfig();
 
             console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${prix}€ - Durée: ${duree}h`);
@@ -333,6 +382,168 @@ client.on('interactionCreate', async (interaction) => {
             console.error('❌ Erreur lors de la création du giveaway:', error.message);
             await interaction.editReply({ content: '❌ Erreur lors de la création du giveaway.' });
         }
+    }
+
+    // Commande /glist - Liste les giveaways actifs
+    if (interaction.commandName === 'glist') {
+        if (config.giveaways.length === 0) {
+            await interaction.reply({
+                content: '📭 Aucun giveaway actif pour le moment.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('📋 GIVEAWAYS ACTIFS')
+            .setColor(0xFF1493)
+            .setFooter({ text: `${config.giveaways.length} giveaway(s) en cours` })
+            .setTimestamp();
+
+        for (const giveaway of config.giveaways) {
+            const channel = interaction.guild.channels.cache.get(giveaway.channel_id);
+            const timeLeft = formatTimeRemaining(giveaway.end_time);
+
+            // Récupérer le nombre de participants
+            try {
+                const message = await channel.messages.fetch(giveaway.message_id);
+                const reaction = message.reactions.cache.get('🎉');
+                const participantCount = reaction ? reaction.count - 1 : 0; // -1 pour exclure le bot
+
+                embed.addFields({
+                    name: `🎁 ${giveaway.prize}€`,
+                    value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Participants:** ${participantCount}\n**Message ID:** \`${giveaway.message_id}\``,
+                    inline: false
+                });
+            } catch (error) {
+                embed.addFields({
+                    name: `🎁 ${giveaway.prize}€`,
+                    value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Message ID:** \`${giveaway.message_id}\``,
+                    inline: false
+                });
+            }
+        }
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    // Commande /gend - Termine un giveaway manuellement
+    if (interaction.commandName === 'gend') {
+        const messageId = interaction.options.getString('message_id');
+        const giveaway = config.giveaways.find(g => g.message_id === messageId);
+
+        if (!giveaway) {
+            await interaction.reply({
+                content: '❌ Aucun giveaway actif trouvé avec cet ID de message.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        await interaction.reply({
+            content: '⏳ Tirage au sort en cours...',
+            flags: MessageFlags.Ephemeral
+        });
+
+        await endGiveaway(giveaway);
+
+        await interaction.editReply({
+            content: '✅ Giveaway terminé manuellement !'
+        });
+    }
+
+    // Commande /gcancel - Annule un giveaway
+    if (interaction.commandName === 'gcancel') {
+        const messageId = interaction.options.getString('message_id');
+        const giveaway = config.giveaways.find(g => g.message_id === messageId);
+
+        if (!giveaway) {
+            await interaction.reply({
+                content: '❌ Aucun giveaway actif trouvé avec cet ID de message.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        try {
+            const guild = interaction.guild;
+            const channel = guild.channels.cache.get(giveaway.channel_id);
+            const message = await channel.messages.fetch(giveaway.message_id);
+
+            const cancelEmbed = new EmbedBuilder()
+                .setTitle('❌ GIVEAWAY ANNULÉ')
+                .setDescription(`**Prix:** ${giveaway.prize}€\n\nCe giveaway a été annulé par un administrateur.`)
+                .setColor(0xFF0000)
+                .setTimestamp();
+
+            await channel.send({ embeds: [cancelEmbed] });
+
+            // Logger
+            await sendLog(guild, `❌ **Giveaway annulé**\nPrix: ${giveaway.prize}€\nPar: ${interaction.user}`);
+
+            // Mettre à jour les statistiques
+            config.stats.total_cancelled++;
+
+            // Retirer le giveaway de la config
+            config.giveaways = config.giveaways.filter(g => g.message_id !== messageId);
+            saveConfig();
+
+            await interaction.reply({
+                content: '✅ Giveaway annulé avec succès !',
+                flags: MessageFlags.Ephemeral
+            });
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'annulation du giveaway:', error);
+            await interaction.reply({
+                content: '❌ Erreur lors de l\'annulation du giveaway.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+    }
+
+    // Commande /gstats - Affiche les statistiques
+    if (interaction.commandName === 'gstats') {
+        const embed = new EmbedBuilder()
+            .setTitle('📊 STATISTIQUES DES GIVEAWAYS')
+            .setColor(0x00FF00)
+            .addFields(
+                {
+                    name: '🎁 Total créés',
+                    value: `${config.stats.total_created}`,
+                    inline: true
+                },
+                {
+                    name: '✅ Total terminés',
+                    value: `${config.stats.total_completed}`,
+                    inline: true
+                },
+                {
+                    name: '❌ Total annulés',
+                    value: `${config.stats.total_cancelled}`,
+                    inline: true
+                },
+                {
+                    name: '👥 Total participants',
+                    value: `${config.stats.total_participants}`,
+                    inline: true
+                },
+                {
+                    name: '⏳ En cours',
+                    value: `${config.giveaways.length}`,
+                    inline: true
+                },
+                {
+                    name: '📈 Moyenne participants',
+                    value: config.stats.total_completed > 0
+                        ? `${Math.round(config.stats.total_participants / config.stats.total_completed)}`
+                        : '0',
+                    inline: true
+                }
+            )
+            .setFooter({ text: 'Statistiques depuis le début' })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 });
 
