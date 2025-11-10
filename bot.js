@@ -145,6 +145,13 @@ async function registerCommands() {
     try {
         console.log('🔄 Enregistrement des slash commands...');
 
+        // Supprimer les commandes globales pour éviter les doublons
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: [] }
+        );
+        console.log('🗑️ Commandes globales supprimées');
+
         if (GUILD_ID) {
             // Mode Guild : les commandes apparaissent instantanément
             await rest.put(
