@@ -47,12 +47,12 @@ const commands = [
             option.setName('prix')
                 .setDescription('Montant du prix en euros (ex: 50)')
                 .setRequired(true))
-        .addNumberOption(option =>
+        .addIntegerOption(option =>
             option.setName('duree')
-                .setDescription('Durée en heures (décimales acceptées: 0.5 = 30min)')
+                .setDescription('Durée en minutes')
                 .setRequired(true)
-                .setMinValue(0.1)
-                .setMaxValue(720))
+                .setMinValue(1)
+                .setMaxValue(43200))
         .addIntegerOption(option =>
             option.setName('gagnants')
                 .setDescription('Nombre de gagnants')
@@ -137,15 +137,18 @@ function saveConfig() {
 }
 
 /**
- * Formatte la durée en heures en format lisible
+ * Formatte la durée en minutes en format lisible
  */
-function formatDuration(hours) {
-    if (hours >= 1) {
-        // Afficher en heures
-        return hours === Math.floor(hours) ? `${hours}h` : `${hours}h`;
+function formatDuration(minutes) {
+    if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        if (remainingMinutes === 0) {
+            return `${hours}h`;
+        } else {
+            return `${hours}h${remainingMinutes}min`;
+        }
     } else {
-        // Convertir en minutes si moins d'1h
-        const minutes = Math.round(hours * 60);
         return `${minutes}min`;
     }
 }
@@ -342,7 +345,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         const prix = interaction.options.getString('prix');
-        const duree = interaction.options.getNumber('duree');
+        const duree = interaction.options.getInteger('duree');
         const gagnants = interaction.options.getInteger('gagnants');
         let channel = interaction.options.getChannel('channel');
 
@@ -367,7 +370,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         // Calculer la date de fin
-        const endTime = Date.now() + (duree * 60 * 60 * 1000);
+        const endTime = Date.now() + (duree * 60 * 1000);
         const endDate = new Date(endTime);
 
         // Créer l'embed du giveaway
