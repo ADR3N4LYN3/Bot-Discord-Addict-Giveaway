@@ -418,12 +418,14 @@ client.on('interactionCreate', async (interaction) => {
         // Créer l'embed du giveaway
         const embed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY !')
-            .setDescription(`Clique sur le bouton pour participer !`)
+            .setDescription(`Clique sur le bouton pour participer !\n`)
             .addFields(
                 { name: '💰 Prix', value: `${formatPrice(prix)} €`, inline: false },
                 { name: '🏆 Nombre de gagnants', value: `${gagnants}`, inline: false },
+                { name: '\u200B', value: '\u200B', inline: false },
                 { name: '⏰ Durée', value: formatDuration(duree), inline: false },
                 { name: '⏳ Tirage au sort dans', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false },
+                { name: '\u200B', value: '\u200B', inline: false },
                 { name: '👤 Créateur', value: `${interaction.user}`, inline: false },
                 { name: '👥 Participants', value: `0`, inline: false }
             )
