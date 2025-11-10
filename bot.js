@@ -428,6 +428,7 @@ client.on('interactionCreate', async (interaction) => {
                 { name: '👥 Participants', value: `0`, inline: false }
             )
             .setColor(0xFF1493)
+            .setImage('https://i.imgur.com/pcVmQSI.png')
             .setTimestamp(endDate);
 
         // Créer le bouton de participation
