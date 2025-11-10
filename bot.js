@@ -5,6 +5,7 @@ require('dotenv').config();
 // Charger les variables d'environnement
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID || '0';
+const DEFAULT_GIVEAWAY_CHANNEL_ID = process.env.DEFAULT_GIVEAWAY_CHANNEL_ID || '0';
 
 // Charger la configuration (giveaways actifs)
 let config = { giveaways: [] };
@@ -40,8 +41,8 @@ const commands = [
                 .setMaxValue(20))
         .addChannelOption(option =>
             option.setName('channel')
-                .setDescription('Channel où poster le giveaway')
-                .setRequired(true))
+                .setDescription('Channel où poster le giveaway (optionnel si channel par défaut configuré)')
+                .setRequired(false))
 ].map(command => command.toJSON());
 
 // Créer le client Discord
@@ -221,6 +222,7 @@ client.once('clientReady', async () => {
     console.log(`Actif sur ${client.guilds.cache.size} serveur(s)`);
     console.log('------');
     console.log(`Logs Discord: ${LOG_CHANNEL_ID !== '0' ? '✅ Activés' : '❌ Désactivés'}`);
+    console.log(`Channel giveaway par défaut: ${DEFAULT_GIVEAWAY_CHANNEL_ID !== '0' ? '✅ Configuré' : '❌ Non configuré'}`);
     console.log('------');
 
     // Définir l'activité/statut du bot
@@ -247,7 +249,27 @@ client.on('interactionCreate', async (interaction) => {
         const prix = interaction.options.getString('prix');
         const duree = interaction.options.getInteger('duree');
         const gagnants = interaction.options.getInteger('gagnants');
-        const channel = interaction.options.getChannel('channel');
+        let channel = interaction.options.getChannel('channel');
+
+        // Si aucun channel n'est fourni, utiliser le channel par défaut
+        if (!channel) {
+            if (DEFAULT_GIVEAWAY_CHANNEL_ID === '0') {
+                await interaction.reply({
+                    content: '❌ Aucun channel fourni et aucun channel par défaut configuré dans le .env',
+                    flags: MessageFlags.Ephemeral
+                });
+                return;
+            }
+
+            channel = interaction.guild.channels.cache.get(DEFAULT_GIVEAWAY_CHANNEL_ID);
+            if (!channel) {
+                await interaction.reply({
+                    content: `❌ Le channel par défaut (ID: ${DEFAULT_GIVEAWAY_CHANNEL_ID}) n'existe pas!`,
+                    flags: MessageFlags.Ephemeral
+                });
+                return;
+            }
+        }
 
         // Calculer la date de fin
         const endTime = Date.now() + (duree * 60 * 60 * 1000);

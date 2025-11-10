@@ -87,11 +87,15 @@ DISCORD_TOKEN=votre_token_ici
 
 # ID du channel Discord pour les logs (0 = logs en console uniquement)
 LOG_CHANNEL_ID=123456789012345678
+
+# ID du channel par défaut pour poster les giveaways (0 = channel obligatoire dans la commande)
+DEFAULT_GIVEAWAY_CHANNEL_ID=123456789012345678
 ```
 
 **Configuration minimale** (pour commencer) :
 - `DISCORD_TOKEN`: Mettez votre token
 - `LOG_CHANNEL_ID`: Laissez à `0` ou mettez l'ID de votre channel de logs
+- `DEFAULT_GIVEAWAY_CHANNEL_ID`: Mettez l'ID de votre channel #giveaway ou laissez à `0`
 
 ## Utilisation
 
@@ -109,6 +113,7 @@ NomDuBot#1234 est connecté et prêt !
 ID du bot: 123456789012345678
 ------
 Logs Discord: ✅ Activés
+Channel giveaway par défaut: ✅ Configuré
 ------
 ```
 
@@ -118,14 +123,18 @@ Le bot apparaîtra en ligne avec le statut **"🎁 Giveaways en cours"**.
 
 1. Dans n'importe quel salon de votre serveur, tapez:
 ```
+# Avec channel spécifique
 /giveaway prix:50 duree:24 gagnants:3 channel:#giveaways
+
+# OU si channel par défaut configuré dans .env
+/giveaway prix:50 duree:24 gagnants:3
 ```
 
 Paramètres:
 - **prix**: Montant en euros (ex: `50` pour 50€)
 - **duree**: Durée en heures (min: 1h, max: 720h soit 30 jours)
 - **gagnants**: Nombre de gagnants (min: 1, max: 20)
-- **channel**: Le channel où poster le giveaway
+- **channel** (optionnel): Le channel où poster le giveaway. Si non fourni, utilise le channel par défaut du `.env`
 
 2. Le bot va:
    - Poster le giveaway dans le channel choisi avec un embed élégant
@@ -145,14 +154,15 @@ Une fois le giveaway créé:
 ## Exemples de commandes
 
 ```bash
-# Giveaway de 100€ pendant 48h avec 1 gagnant
+# Avec channel spécifique
 /giveaway prix:100 duree:48 gagnants:1 channel:#concours
-
-# Giveaway de 25€ pendant 6h avec 5 gagnants
 /giveaway prix:25 duree:6 gagnants:5 channel:#giveaways
-
-# Giveaway de 500€ pendant 7 jours avec 2 gagnants
 /giveaway prix:500 duree:168 gagnants:2 channel:#events
+
+# Avec channel par défaut (si configuré dans .env)
+/giveaway prix:100 duree:48 gagnants:1
+/giveaway prix:50 duree:24 gagnants:3
+/giveaway prix:25 duree:12 gagnants:5
 ```
 
 ## Personnalisation
@@ -216,7 +226,7 @@ Bot-Discord-Addict-Giveaway/
 - `prix` (requis): Montant en euros
 - `duree` (requis): Durée en heures (1-720)
 - `gagnants` (requis): Nombre de gagnants (1-20)
-- `channel` (requis): Channel où poster
+- `channel` (optionnel): Channel où poster (utilise le channel par défaut du .env si non fourni)
 
 ## Déploiement sur VPS
 
