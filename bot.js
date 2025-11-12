@@ -52,7 +52,7 @@ const commands = [
         .setDefaultMemberPermissions(null) // Permissions vérifiées dans le code
         .addStringOption(option =>
             option.setName('prix')
-                .setDescription('Montant du prix en euros (ex: 50)')
+                .setDescription('Montant du prix (ex: 50)')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('duree')
@@ -66,6 +66,14 @@ const commands = [
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(20))
+        .addStringOption(option =>
+            option.setName('monnaie')
+                .setDescription('Monnaie du prix')
+                .setRequired(false)
+                .addChoices(
+                    { name: '💶 Euro (€)', value: '€' },
+                    { name: '💵 Dollar ($)', value: '$' }
+                ))
         .addChannelOption(option =>
             option.setName('channel')
                 .setDescription('Channel où poster le giveaway (optionnel si channel par défaut configuré)')
@@ -152,6 +160,14 @@ function saveConfig() {
  */
 function formatPrice(price) {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
+ * Formatte le prix avec la monnaie
+ */
+function formatPriceWithCurrency(price, currency = '€') {
+    const formattedPrice = formatPrice(price);
+    return `${formattedPrice} ${currency}`;
 }
 
 /**
@@ -254,6 +270,41 @@ async function endGiveaway(giveaway) {
 
         if (!message) return;
 
+        // Mettre à jour le message original du giveaway pour indiquer qu'il est terminé
+        try {
+            const originalEmbed = EmbedBuilder.from(message.embeds[0]);
+
+            // Modifier le titre et la couleur
+            originalEmbed.setTitle('🎉 GIVEAWAY TERMINÉ !');
+            originalEmbed.setColor(0xFF0000);  // Rouge pour indiquer terminé
+
+            // Trouver et mettre à jour le champ du countdown
+            const fields = originalEmbed.data.fields;
+            const countdownFieldIndex = fields.findIndex(f => f.name === '⏳ Tirage au sort dans');
+
+            if (countdownFieldIndex !== -1) {
+                fields[countdownFieldIndex].value = '✅ Giveaway terminé !';
+            }
+
+            // Désactiver le bouton de participation
+            const disabledButton = new ButtonBuilder()
+                .setCustomId('join_giveaway')
+                .setLabel('🎉 Giveaway terminé')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true);
+
+            const disabledRow = new ActionRowBuilder()
+                .addComponents(disabledButton);
+
+            // Mettre à jour le message
+            await message.edit({
+                embeds: [originalEmbed],
+                components: [disabledRow]
+            });
+        } catch (error) {
+            console.error('⚠️ Erreur lors de la mise à jour du message original:', error.message);
+        }
+
         // Récupérer les participants depuis le config
         const participantIds = config.participants[giveaway.message_id] || [];
 
@@ -279,12 +330,13 @@ async function endGiveaway(giveaway) {
 
         // Annoncer les gagnants
         const winnerMentions = winnerIds.map(id => `<@${id}>`).join(', ');
+        const currency = giveaway.currency || '€';
 
         const resultEmbed = new EmbedBuilder()
             .setTitle('🎉 GIVEAWAY TERMINÉ !')
             .setDescription(`Félicitations aux gagnant(s) du giveaway ! 🎊`)
             .addFields(
-                { name: '💰 Prix', value: `${formatPrice(giveaway.prize)} €`, inline: false },
+                { name: '💰 Prix', value: formatPriceWithCurrency(giveaway.prize, currency), inline: false },
                 { name: '🏆 Gagnant(s)', value: winnerMentions, inline: false },
                 { name: '🎁 Participants', value: `${participantIds.length}`, inline: false }
             )
@@ -294,7 +346,7 @@ async function endGiveaway(giveaway) {
         await channel.send({ content: winnerMentions, embeds: [resultEmbed] });
 
         // Logger
-        await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${formatPrice(giveaway.prize)} €\nGagnants: ${winnerMentions}\nParticipants: ${participantIds.length}`);
+        await sendLog(guild, `🎉 **Giveaway terminé**\nPrix: ${formatPriceWithCurrency(giveaway.prize, currency)}\nGagnants: ${winnerMentions}\nParticipants: ${participantIds.length}`);
 
         // Mettre à jour les statistiques
         config.stats.total_completed++;
@@ -375,6 +427,7 @@ client.on('interactionCreate', async (interaction) => {
         const prix = interaction.options.getString('prix');
         const duree = interaction.options.getInteger('duree');
         const gagnants = interaction.options.getInteger('gagnants');
+        const monnaie = interaction.options.getString('monnaie') || '€';
         let channel = interaction.options.getChannel('channel');
         const customMessage = interaction.options.getString('message') || '@everyone';
 
@@ -407,7 +460,7 @@ client.on('interactionCreate', async (interaction) => {
             .setTitle('🎉 GIVEAWAY !')
             .setDescription(`Clique sur le bouton pour participer !`)
             .addFields(
-                { name: '💰 Prix', value: `${formatPrice(prix)} €`, inline: false },
+                { name: '💰 Prix', value: formatPriceWithCurrency(prix, monnaie), inline: false },
                 { name: '🏆 Nombre de gagnants', value: `${gagnants}`, inline: false },
                 { name: '⏰ Durée', value: formatDuration(duree), inline: false },
                 { name: '⏳ Tirage au sort dans', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false },
@@ -445,6 +498,7 @@ client.on('interactionCreate', async (interaction) => {
                 channel_id: channel.id,
                 guild_id: interaction.guild.id,
                 prize: prix,
+                currency: monnaie,
                 winners: gagnants,
                 end_time: endTime,
                 created_by: interaction.user.id
@@ -457,8 +511,8 @@ client.on('interactionCreate', async (interaction) => {
             config.stats.total_created++;
             saveConfig();
 
-            console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${formatPrice(prix)} € - Durée: ${formatDuration(duree)}`);
-            await sendLog(interaction.guild, `🎁 **Nouveau giveaway créé**\nPar: ${interaction.user}\nPrix: ${formatPrice(prix)} €\nDurée: ${formatDuration(duree)}\nGagnants: ${gagnants}`);
+            console.log(`✅ Giveaway créé par ${interaction.user.tag} - Prix: ${formatPriceWithCurrency(prix, monnaie)} - Durée: ${formatDuration(duree)}`);
+            await sendLog(interaction.guild, `🎁 **Nouveau giveaway créé**\nPar: ${interaction.user}\nPrix: ${formatPriceWithCurrency(prix, monnaie)}\nDurée: ${formatDuration(duree)}\nGagnants: ${gagnants}`);
 
         } catch (error) {
             console.error('❌ Erreur lors de la création du giveaway:', error.message);
@@ -501,12 +555,13 @@ client.on('interactionCreate', async (interaction) => {
         for (const giveaway of config.giveaways) {
             const channel = interaction.guild.channels.cache.get(giveaway.channel_id);
             const timeLeft = formatTimeRemaining(giveaway.end_time);
+            const currency = giveaway.currency || '€';
 
             // Récupérer le nombre de participants depuis la config
             const participantCount = config.participants[giveaway.message_id]?.length || 0;
 
             embed.addFields({
-                name: `🎁 ${formatPrice(giveaway.prize)} €`,
+                name: `🎁 ${formatPriceWithCurrency(giveaway.prize, currency)}`,
                 value: `**Channel:** ${channel}\n**Gagnants:** ${giveaway.winners}\n**Temps restant:** ${timeLeft}\n**Participants:** ${participantCount}\n**Message ID:** \`${giveaway.message_id}\``,
                 inline: false
             });
@@ -557,12 +612,13 @@ client.on('interactionCreate', async (interaction) => {
             const guild = interaction.guild;
             const channel = guild.channels.cache.get(giveaway.channel_id);
             const message = await channel.messages.fetch(giveaway.message_id);
+            const currency = giveaway.currency || '€';
 
             const cancelEmbed = new EmbedBuilder()
                 .setTitle('❌ GIVEAWAY ANNULÉ')
                 .setDescription(`Ce giveaway a été annulé par un administrateur.`)
                 .addFields(
-                    { name: '💰 Prix', value: `${formatPrice(giveaway.prize)} €`, inline: true }
+                    { name: '💰 Prix', value: formatPriceWithCurrency(giveaway.prize, currency), inline: true }
                 )
                 .setColor(0xFF0000)
                 .setTimestamp();
@@ -570,7 +626,7 @@ client.on('interactionCreate', async (interaction) => {
             await channel.send({ embeds: [cancelEmbed] });
 
             // Logger
-            await sendLog(guild, `❌ **Giveaway annulé**\nPrix: ${formatPrice(giveaway.prize)} €\nPar: ${interaction.user}`);
+            await sendLog(guild, `❌ **Giveaway annulé**\nPrix: ${formatPriceWithCurrency(giveaway.prize, currency)}\nPar: ${interaction.user}`);
 
             // Mettre à jour les statistiques
             config.stats.total_cancelled++;
